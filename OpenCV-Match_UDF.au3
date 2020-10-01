@@ -3,7 +3,8 @@
 ; Description ...: Matches pictures on the screen to perform simple automation actions.
 ; Version .......: v1.0
 ; Author ........: BB_19
-; Credits ........: @mylise
+; Credits .......: @mylise
+; Modified ......: Linlijian
 ; ===============================================================================================================================
 #include-once
 #include <GDIplus.au3>
@@ -29,9 +30,9 @@ Func _ClickMouse($Coordinates, $mouse_button="left", $number_of_clicks = 1)
 EndFunc   ;==>_ClickMouse
 
 ; #FUNCTION# ====================================================================================================================
-; Name ..........: _MatchPicture
+; Name ..........: _ImageSearch
 ; Description ...:  Searches for a picture on screen or on a specific area of the screen and returns the coordinates where the picture has been found.
-; Syntax ........: _MatchPicture($Match_Pic[, $Threshold = 0.9[, $CustomCords = False[, $LoopCount = 1[, $LoopWait = 2000]]]])
+; Syntax ........: _ImageSearch($Match_Pic[, $Threshold = 0.9[, $CustomCords = False[, $LoopCount = 1[, $LoopWait = 2000]]]])
 ; Parameters ....: $Match_Pic           -  The path to the picture to be matched.
 ;                  $Threshold           - [optional] Threshold 0.1-1.0. The higher, the more precisely the match picture has to be in order to match. Default is 0.9.
 ;                  $CustomCords         - [optional] An array with coordinates for a rect x1,y1,x2,y2 that can be used to search on a specific region of the screen. Can be generated using the provided Snapshot-Tool. Default is False. 
@@ -41,8 +42,9 @@ EndFunc   ;==>_ClickMouse
 ; Author ........: BB_19
 ; Related .......: https://www.autoitscript.com/forum/topic/160732-opencv-udf/
 ; Credits .....: @mylise 
+; Modified ......: Linlijian
 ; ===============================================================================================================================
-Func _MatchPicture($Match_Pic, $Threshold = 0.9, $CustomCords = False, $LoopCount = 1, $LoopWait = 2000)
+Func _ImageSearch($hWnd, $Match_Pic, $Threshold = 0.9, $CustomCords = False, $LoopCount = 1, $LoopWait = 2000)
 	If Not FileExists($Match_Pic) Then
 		_Internal_ErrorLogger("Match Image not found: " & $Match_Pic)
 		Return SetError(1)
@@ -64,12 +66,10 @@ Func _MatchPicture($Match_Pic, $Threshold = 0.9, $CustomCords = False, $LoopCoun
 
 	For $iTries = 1 To $LoopCount Step +1
 		;Capature Screen / Load as Main image
-		If Not IsArray($CustomCords) Then
 
-			$hBitmap = _ScreenCapture_Capture("", 0, 0, $ScreenSize[0], $ScreenSize[1], False)
-		Else
-			$hBitmap = _ScreenCapture_Capture("", $CustomCords[0], $CustomCords[1], $CustomCords[2], $CustomCords[3], False)
-		EndIf
+		Local $iWidth = _WinAPI_GetWindowWidth($hWnd)
+		Local $iHeight = _WinAPI_GetWindowHeight($hWnd)
+		$hBitmap = _WinCapture($hWnd, $iWidth, $iHeight)
 		Local $Bitmap = _GDIPlus_BitmapCreateFromHBITMAP($hBitmap)
 
 		Local $hMain_Pic = _Opencv_BMP2IPL($Bitmap)
@@ -126,6 +126,40 @@ Func _MatchPicture($Match_Pic, $Threshold = 0.9, $CustomCords = False, $LoopCoun
 	Return SetError(2)
 
 EndFunc   ;==>_MatchPicture
+
+; #FUNCTION# ====================================================================================================================
+; Name ..........: _WinCapture
+; Description ...: Windown Capture hidden active dont work for minimize.
+; Syntax ........: _WinCapture($WinHandle [,$iWidth = -1 [,$iHeight = -1]])
+; Parameters ....: $WinHandle        -  The WinHandle to matching picture.
+;				   $iWidth           -  Window Width
+;                  $iHeight          -  Window Height
+; Author ........: wraithdu
+; Modified ......: Linlijian
+; ===============================================================================================================================
+Func _WinCapture($hWnd, $iWidth = -1, $iHeight = -1)
+    Local $iH, $iW, $hDDC, $hCDC, $hBMP
+
+    If $iWidth = -1 Then $iWidth = _WinAPI_GetWindowWidth($hWnd)
+    If $iHeight = -1 Then $iHeight = _WinAPI_GetWindowHeight($hWnd)
+
+    $hDDC = _WinAPI_GetDC($hWnd)
+    $hCDC = _WinAPI_CreateCompatibleDC($hDDC)
+    $hBMP = _WinAPI_CreateCompatibleBitmap($hDDC, $iWidth, $iHeight)
+    _WinAPI_SelectObject($hCDC, $hBMP)
+
+    DllCall("User32.dll", "int", "PrintWindow", "hwnd", $hWnd, "hwnd", $hCDC, "int", 0)
+    _WinAPI_BitBlt($hCDC, 0, 0, $iW, $iH, $hDDC, 0, 0, 0x00330008)
+
+    _WinAPI_ReleaseDC($hWnd, $hDDC)
+    _WinAPI_DeleteDC($hCDC)
+
+	;save for debug
+    ;~ _ScreenCapture_SaveImage(@ScriptDir&"\window.jpg", $hBMP)
+    ;~ _WinAPI_DeleteObject($hBMP)
+
+    Return $hBMP
+EndFunc   ;==>_WinCapture
 
 ; #FUNCTION# ====================================================================================================================
 ; Name ..........: _OpenCV_EnableLogging

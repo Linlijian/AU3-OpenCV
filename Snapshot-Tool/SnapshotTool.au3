@@ -71,8 +71,8 @@ WEnd
 
 Func _GetFileName($hPath)
 	For $i = 1 To 200 Step +1
-		If Not FileExists($hPath & $i & ".png") Then
-			Local $hImagePath[2] = [$hPath & $i & ".png", $i]
+		If Not FileExists($hPath & $i & ".bmp") Then
+			Local $hImagePath[2] = [$hPath & $i & ".bmp", $i]
 			Return $hImagePath
 			ExitLoop
 		EndIf
