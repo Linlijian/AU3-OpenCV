@@ -1,5 +1,5 @@
 ; #UDF# =======================================================================================================================
-; Name ..........: OpenCV Match UDF
+; Name ..........: OpenCV
 ; Description ...: Matches pictures on the screen to perform simple automation actions.
 ; Version .......: v1.0
 ; Author ........: BB_19
@@ -15,21 +15,6 @@ Global $_opencv_core, $_opencv_highgui, $_opencv_imgproc
 _GDIPlus_Startup()
 
 ; #FUNCTION# ====================================================================================================================
-; Name ..........: _ClickMouse
-; Description ...:  Calculates the center of a rect using an array with coordinates and then clicks the left/right mouse button.
-; Syntax ........: _ClickMouse($Coordinates, $mouse_button[, $number_of_clicks = 1])
-; Parameters ....: $Coordinates         - Array returned by _MatchPicture.
-;               			  $mouse_button        - [optional] String. "left/right". Default is "left"
-;                  			  $number_of_clicks    - [optional] a general number value. Default is 1.
-; ===============================================================================================================================
-Func _ClickMouse($Coordinates, $mouse_button="left", $number_of_clicks = 1)
-	MouseUp("")
-	BlockInput(1)
-	MouseClick($mouse_button, ($Coordinates[0] + $Coordinates[2]) / 2, ($Coordinates[1] + $Coordinates[3]) / 2, $number_of_clicks, 0)
-	BlockInput(0)
-EndFunc   ;==>_ClickMouse
-
-; #FUNCTION# ====================================================================================================================
 ; Name ..........: _ImageSearch
 ; Description ...:  Searches for a picture on screen or on a specific area of the screen and returns the coordinates where the picture has been found.
 ; Syntax ........: _ImageSearch($Match_Pic[, $Threshold = 0.9[, $CustomCords = False[, $LoopCount = 1[, $LoopWait = 2000]]]])
@@ -41,7 +26,7 @@ EndFunc   ;==>_ClickMouse
 ; Return values .: Array with coordinates(x1,y1,x2,y2) of the match or @error if no match was found.
 ; Author ........: BB_19
 ; Related .......: https://www.autoitscript.com/forum/topic/160732-opencv-udf/
-; Credits .....: @mylise 
+; Credits .......: @mylise 
 ; Modified ......: Linlijian
 ; ===============================================================================================================================
 Func _ImageSearch($hWnd, $Match_Pic, $Threshold = 0.9, $CustomCords = False, $LoopCount = 1, $LoopWait = 2000)
@@ -70,10 +55,8 @@ Func _ImageSearch($hWnd, $Match_Pic, $Threshold = 0.9, $CustomCords = False, $Lo
 			$iWidth = _WinAPI_GetWindowWidth($hWnd)
 			$iHeight = _WinAPI_GetWindowHeight($hWnd)
 			$hBitmap = _WinCapture($hWnd, $iWidth, $iHeight)
-			ConsoleWrite("in _WinCapture")
 		Else
-			$hBitmap = _WinCaptureAreaCustom($hWnd, $CustomCords[0], $CustomCords[1], $CustomCords[2], $CustomCords[3])
-			ConsoleWrite("in _WinCaptureAreaCustom")
+			$hBitmap = _WinCaptureAreaPosition($hWnd, $CustomCords[0], $CustomCords[1], $CustomCords[2], $CustomCords[3])
 		EndIf
 
 		Local $Bitmap = _GDIPlus_BitmapCreateFromHBITMAP($hBitmap)
@@ -158,16 +141,24 @@ Func _WinCapture($hWnd, $iWidth = -1, $iHeight = -1)
     _WinAPI_BitBlt($hCDC, 0, 0, $iW, $iH, $hDDC, 0, 0, 0x00330008)
 
     _WinAPI_ReleaseDC($hWnd, $hDDC)
-    _WinAPI_DeleteDC($hCDC)
-
-	;save for debug
-    ;_ScreenCapture_SaveImage(@ScriptDir&"\window.jpg", $hBMP)
-    ;~ _WinAPI_DeleteObject($hBMP)
-
+	_WinAPI_DeleteDC($hCDC)
+	
     Return $hBMP
 EndFunc   ;==>_WinCapture
 
-Func _WinCaptureAreaCustom($hWnd, $winX = -1, $winY = -1, $imgX = -1, $imgY = -1)
+; #FUNCTION# ====================================================================================================================
+; Name ..........: _WinCaptureAreaPosition
+; Description ...: Windown Capture Position hidden active dont work for minimize.
+; Syntax ........: _WinCaptureAreaPosition($WinHandle [,$winX = -1 [,$winY = -1 [,$imgX = -1 [, $imgY = -1]]]]])
+; Parameters ....: $WinHandle        -  The WinHandle to matching picture.
+;				   $winX             -  Window Width
+;                  $winY             -  Window Height
+;                  $imgX             -  Image cap size X
+;                  $imgY             -  Image cap size Y
+; Author ........: Linlijian
+; Modified ......: Linlijian
+; ===============================================================================================================================
+Func _WinCaptureAreaPosition($hWnd, $winX = -1, $winY = -1, $imgX = -1, $imgY = -1)
     Local $hDDC, $hCDC, $hBMP
 
     If $winX = -1 Then $winX = _WinAPI_GetWindowWidth($hWnd)
@@ -183,7 +174,7 @@ Func _WinCaptureAreaCustom($hWnd, $winX = -1, $winY = -1, $imgX = -1, $imgY = -1
     _WinAPI_SelectObject($hCDC, $hBMP)
 
     DllCall("User32.dll", "int", "PrintWindow", "hwnd", $hWnd, "hwnd", $hCDC, "int", 0)
-    _WinAPI_BitBlt($hCDC, 0, 0, $imgX, $winY, $hDDC, $winX, $winY, 0x00CC0020)
+    _WinAPI_BitBlt($hCDC, 0, 0, $imgX, $imgY, $hDDC, $winX, $winY, 0x00CC0020)
 
     _WinAPI_ReleaseDC($hWnd, $hDDC)
     _WinAPI_DeleteDC($hCDC)
@@ -192,7 +183,7 @@ Func _WinCaptureAreaCustom($hWnd, $winX = -1, $winY = -1, $imgX = -1, $imgY = -1
 	;_WinAPI_DeleteObject($hBMP)
 
     Return $hBMP
-EndFunc   ;==>_WinCaptureArea
+EndFunc   ;==>_WinCaptureAreaPosition
 
 ; #FUNCTION# ====================================================================================================================
 ; Name ..........: _OpenCV_EnableLogging
@@ -233,7 +224,16 @@ Func _MarkMatch($Coordinates, $iColor = 0x0000FF)
 	_WinAPI_ReleaseDC(0, $hDC)
 EndFunc   ;==>_MarkMatch
 
-
+; #FUNCTION# ====================================================================================================================
+; Name ..........: _Click
+; Description ...:  ConctrolClick
+; Syntax ........: _Click($hWnd, $x, $y)
+; Author ........: Linlijian
+; ===============================================================================================================================
+Func _Click($hWnd, $x, $y)
+	ControlClick($hWnd, "", "", "left", 1, $x, $y)
+	Sleep(100)
+EndFunc
 ; #FUNCTION# ====================================================================================================================
 ; Name ..........: _ScreenSize
 ; Description ...:  Returns the full width + height that is required to create a snapshot of all displays at once.
