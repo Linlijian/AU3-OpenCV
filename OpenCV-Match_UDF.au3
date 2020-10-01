@@ -66,10 +66,16 @@ Func _ImageSearch($hWnd, $Match_Pic, $Threshold = 0.9, $CustomCords = False, $Lo
 
 	For $iTries = 1 To $LoopCount Step +1
 		;Capature Screen / Load as Main image
+		If Not IsArray($CustomCords) Then
+			$iWidth = _WinAPI_GetWindowWidth($hWnd)
+			$iHeight = _WinAPI_GetWindowHeight($hWnd)
+			$hBitmap = _WinCapture($hWnd, $iWidth, $iHeight)
+			ConsoleWrite("in _WinCapture")
+		Else
+			$hBitmap = _WinCaptureAreaCustom($hWnd, $CustomCords[0], $CustomCords[1], $CustomCords[2], $CustomCords[3])
+			ConsoleWrite("in _WinCaptureAreaCustom")
+		EndIf
 
-		Local $iWidth = _WinAPI_GetWindowWidth($hWnd)
-		Local $iHeight = _WinAPI_GetWindowHeight($hWnd)
-		$hBitmap = _WinCapture($hWnd, $iWidth, $iHeight)
 		Local $Bitmap = _GDIPlus_BitmapCreateFromHBITMAP($hBitmap)
 
 		Local $hMain_Pic = _Opencv_BMP2IPL($Bitmap)
@@ -155,11 +161,38 @@ Func _WinCapture($hWnd, $iWidth = -1, $iHeight = -1)
     _WinAPI_DeleteDC($hCDC)
 
 	;save for debug
-    ;~ _ScreenCapture_SaveImage(@ScriptDir&"\window.jpg", $hBMP)
+    ;_ScreenCapture_SaveImage(@ScriptDir&"\window.jpg", $hBMP)
     ;~ _WinAPI_DeleteObject($hBMP)
 
     Return $hBMP
 EndFunc   ;==>_WinCapture
+
+Func _WinCaptureAreaCustom($hWnd, $winX = -1, $winY = -1, $imgX = -1, $imgY = -1)
+    Local $hDDC, $hCDC, $hBMP
+
+    If $winX = -1 Then $winX = _WinAPI_GetWindowWidth($hWnd)
+    If $winY = -1 Then $winY = _WinAPI_GetWindowHeight($hWnd)
+    If $imgX = -1 Then $imgX = 0
+    If $imgY = -1 Then $imgY = 0
+    If $winX < $imgX Then $imgX = 0
+    If $winY < $imgY Then $imgY = 0
+
+    $hDDC = _WinAPI_GetDC($hWnd)
+    $hCDC = _WinAPI_CreateCompatibleDC($hDDC)
+    $hBMP = _WinAPI_CreateCompatibleBitmap($hDDC, $imgX, $imgY)
+    _WinAPI_SelectObject($hCDC, $hBMP)
+
+    DllCall("User32.dll", "int", "PrintWindow", "hwnd", $hWnd, "hwnd", $hCDC, "int", 0)
+    _WinAPI_BitBlt($hCDC, 0, 0, $imgX, $winY, $hDDC, $winX, $winY, 0x00CC0020)
+
+    _WinAPI_ReleaseDC($hWnd, $hDDC)
+    _WinAPI_DeleteDC($hCDC)
+
+	;OpenCV Error: Unknown error code -25 (Bad input roi) in cvInitImageHeader
+	;_WinAPI_DeleteObject($hBMP)
+
+    Return $hBMP
+EndFunc   ;==>_WinCaptureArea
 
 ; #FUNCTION# ====================================================================================================================
 ; Name ..........: _OpenCV_EnableLogging
