@@ -74,10 +74,10 @@ Func _ImageSearchV101($hWnd, $Match_Pic, $Threshold = 0.9, $Left=0, $Top=0, $Rig
 
 	;Set coordinates
 	Local $Coordinates[6]
-	$Coordinates[0] = DllStructGetData($tmaxloc, "x") + $Left[0] ; x
-	$Coordinates[1] = DllStructGetData($tmaxloc, "y") + $Top[1] ; y
-	$Coordinates[2] = DllStructGetData($tmaxloc, "x") + $width2 + $Left[0] ;x2
-	$Coordinates[3] = DllStructGetData($tmaxloc, "y") + $height2 + $Top[1] ;y2
+	$Coordinates[0] = DllStructGetData($tmaxloc, "x") + $Left ; x
+	$Coordinates[1] = DllStructGetData($tmaxloc, "y") + $Top ; y
+	$Coordinates[2] = DllStructGetData($tmaxloc, "x") + $width2 + $Left ;x2
+	$Coordinates[3] = DllStructGetData($tmaxloc, "y") + $height2 + $Top ;y2
 	$Coordinates[4] = ($Coordinates[0] + $Coordinates[2]) / 2 ;x click
 	$Coordinates[5] = ($Coordinates[1] + $Coordinates[3]) / 2 ;y click
 
@@ -253,8 +253,8 @@ Func _WinCaptureAreaPosition($hWnd, $winX = -1, $winY = -1, $imgX = -1, $imgY = 
     If $winY = -1 Then $winY = _WinAPI_GetWindowHeight($hWnd)
     If $imgX = -1 Then $imgX = 0
     If $imgY = -1 Then $imgY = 0
-    If $winX < $imgX Then $imgX = 0
-    If $winY < $imgY Then $imgY = 0
+    ;~ If $winX < $imgX Then $imgX = 0
+    ;~ If $winY < $imgY Then $imgY = 0
 
     $hDDC = _WinAPI_GetDC($hWnd)
     $hCDC = _WinAPI_CreateCompatibleDC($hDDC)
