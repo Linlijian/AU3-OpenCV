@@ -1,23 +1,65 @@
-#AutoIt3Wrapper_UseX64=n ; In order for the x86 DLLs to work
-#include "OpenCV.au3"
+#AutoIt3Wrapper_Res_File_Add=test_1.txt, rt_rcdata, TEST_TXT_1
+#AutoIt3Wrapper_Res_File_Add=image1.bmp, rt_bitmap, TEST_BMP_1
+#AutoIt3Wrapper_Res_File_Add=image2.bmp, rt_bitmap, TEST_BMP_2
+#AutoIt3Wrapper_Res_File_Add=image3.jpg, rt_rcdata, TEST_JPG_3
+#AutoIt3Wrapper_Res_File_Add=binary1.dat, rt_rcdata, TEST_BIN_1
+#AutoIt3Wrapper_Res_File_Add=C:\WINDOWS\Media\tada.wav, sound, TEST_WAV_1
 
-_OpenCV_Startup();loads opencv DLLs
-_OpenCV_EnableLogging(True,True,True) ;Logs matches, errors in a log file and autoit console output. 
+#include "resources.au3"
+ 
+$gui = GUICreate("Data from resources example",820,400)
+$pic1 = GUICtrlCreatePic("",0,0,400,300)
+$pic2 = GUICtrlCreatePic("",400,0,400,150)
+$pic3 = GUICtrlCreatePic("",400,150,400,150)
+$pic4 = GUICtrlCreatePic("",600,320,400,100)
+$label1 = GUICtrlCreateLabel("",20,320,380,100)
+$label2 = GUICtrlCreateLabel("",400,320,200,100)
+GUISetState(@SW_SHOW)
 
+; get string from resource
+$string = _ResourceGetAsString("TEST_TXT_1")
+GUICtrlSetData($label1, $string)
 
-Local $WinHandle = WinGetHandle("NoxPlayer 7")
-$iWidth = _WinAPI_GetWindowWidth($WinHandle)
-$iHeight = _WinAPI_GetWindowHeight($WinHandle)
+; set BMP image to picture control from resource bitmap
+_ResourceSetImageToCtrl($pic1, "TEST_BMP_1", $RT_BITMAP)
 
-Local $val5 = 560 ;ตำแหน่งแกน X ภาพที่ cap จากขนาดของ windown
-Local $val6 = 300 ;ตำแหน่งแกน Y ภาพที่ cap จากขนาดของ windown
-Local $arry[4] = [560,300,100,100]
-$Match1 = _ImageSearch($WinHandle,@ScriptDir&"\Match\1.bmp", 0.70,$arry,10,500)
-;$Match1 = _ImageSearch($WinHandle,@ScriptDir&"\Match\1.bmp", 0.70,False,10,500)
-If Not @error Then
-	_MarkMatch($Match1)
-	Sleep(100)
-	_Click($WinHandle,$Match1[0], $Match1[1])
-EndIf
+; get bitmap from resource (as pointer)
+$hBmp = _ResourceGet("TEST_BMP_2", $RT_BITMAP)
+; and use it for whatever you like
+_SetBitmapToCtrl($pic2, $hBmp)
 
-Sleep(1000)
+; set JPG image to picture control from resource
+_ResourceSetImageToCtrl($pic3, "TEST_JPG_3")
+
+; set image to picture control from external DLL resource
+_ResourceSetImageToCtrl($pic4, "#14355", $RT_BITMAP, @SystemDir & "\shell32.dll")
+
+; get/use picture from resources as hImage type
+$size1 = _ResourceGetImageSize("TEST_BMP_1", $RT_BITMAP)
+$size2 = _ResourceGetImageSize("TEST_JPG_3")
+GUICtrlSetData($label2, $size1 & @CRLF & $size2)
+
+; save binary data or another type (image) from resource to file and get its size in bytes
+$size1 = _ResourceSaveToFile(@ScriptDir & "\binary_data1.dat", "TEST_BIN_1")
+$size2 = _ResourceSaveToFile(@ScriptDir & "\binary_data2.bmp", "TEST_BMP_1", $RT_BITMAP)
+
+; save binary data from resource to file (create not existing directory)
+_ResourceSaveToFile("C:\Dir1\SubDir2\binary_data1.dat", "TEST_BIN_1", $RT_RCDATA, 0, 1)
+_ResourceSaveToFile("C:\Dir1\SubDir2\binary_data2.bmp", "TEST_BMP_1", $RT_BITMAP, 0, 1)
+
+; play WAV from resource (sync/async)
+_ResourcePlaySound("TEST_WAV_1")
+_ResourcePlaySound("TEST_WAV_1", $SND_ASYNC)
+
+While 1
+ If GUIGetMsg() = -3 Then Exit
+WEnd
+
+Func _ResourceGetImageSize($ResName, $ResType = 10) ; $RT_RCDATA = 10
+ ; get/use picture from resources as hImage type
+ $hImage = _ResourceGetAsImage($ResName, $ResType)
+ $width = _GDIPlus_ImageGetWidth ($hImage)
+ $height = _GDIPlus_ImageGetHeight($hImage)
+ 
+ Return "Size of " & $ResName & " is: " & $width & "x" & $height
+EndFunc
