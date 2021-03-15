@@ -1,7 +1,7 @@
 ; #UDF# =======================================================================================================================
 ; Name ..........: OpenCV
 ; Description ...: Matches pictures on the screen to perform simple automation actions.
-; Version .......: v1.0
+; Version .......: v1.0.1
 ; Author ........: BB_19
 ; Credits .......: @mylise
 ; Modified ......: Linlijian
@@ -13,6 +13,94 @@ Global $OpenCV_MatchLogging = False, $OpenCV_ErrorLogging = False, $OpenCV_Autoi
 Global $_opencv_core, $_opencv_highgui, $_opencv_imgproc
 
 _GDIPlus_Startup()
+
+; #FUNCTION# ====================================================================================================================
+; Name ..........: _ImageSearch v1.0.1
+; Description ...:  Searches for a picture on screen or on a specific area of the screen and returns the coordinates where the picture has been found.
+; Syntax ........: _ImageSearch($Match_Pic[, $Threshold = 0.9[, $Left[, $Top[, $Right[, $Bottom]]]]])
+; Parameters ....: $Match_Pic           -  The path to the picture to be matched.
+;                  $Threshold           - [optional] Threshold 0.1-1.0. The higher, the more precisely the match picture has to be in order to match. Default is 0.9.
+;                  $Left      		    - [optional] region left of the screen
+;                  $Top      		    - [optional] region left of the screen
+;                  $Right  		        - [optional] region left of the screen
+;                  $Bottom     		    - [optional] region left of the screen
+; Return values .: Array with coordinates(x1,y1,x2,y2) of the match or @error if no match was found.
+; Author ........: BB_19
+; Related .......: https://www.autoitscript.com/forum/topic/160732-opencv-udf/
+; Credits .......: @mylise 
+; Modified ......: Linlijian
+; ===============================================================================================================================
+Func _ImageSearchV101($hWnd, $Match_Pic, $Threshold = 0.9, $Left=0, $Top=0, $Right=0, $Bottom=0)
+	If Not FileExists($Match_Pic) Then
+		_Internal_ErrorLogger("Match Image not found: " & $Match_Pic)
+		Return SetError(1)
+	EndIf
+
+	Local $hBitmap
+
+	;Performance Counters
+	Local $Perf = TimerInit()
+	;Load Match Image
+	Local $hMatch_Pic = _cvLoadImage($Match_Pic)
+	Local $hMatch_Size = _cvGetSize($hMatch_Pic)
+	Local $width2 = DllStructGetData($hMatch_Size, "width")
+	Local $height2 = DllStructGetData($hMatch_Size, "height")
+	Local $ScreenSize = _ScreenSize()
+
+	$hBitmap = _WinCaptureAreaPosition($hWnd, $Left, $Top, $Right, $Bottom)
+
+	Local $Bitmap = _GDIPlus_BitmapCreateFromHBITMAP($hBitmap)
+
+	Local $hMain_Pic = _Opencv_BMP2IPL($Bitmap)
+	Local $hMain_Size = _cvGetSize($hMain_Pic)
+	Local $width = DllStructGetData($hMain_Size, "width")
+	Local $height = DllStructGetData($hMain_Size, "height")
+	Local $rw = $width - $width2 + 1
+	Local $rh = $height - $height2 + 1
+	Local $tmaxloc = DllStructCreate( "int x;" & "int y;")
+	Local $tminloc = DllStructCreate( "int x;" & "int y;")
+	Local $tmaxval = DllStructCreate("double max;")
+	Local $tminval = DllStructCreate("double min;")
+	Local $pmaxloc = DllStructGetPtr($tmaxloc)
+	Local $pminloc = DllStructGetPtr($tminloc)
+	Local $pmaxval = DllStructGetPtr($tmaxval)
+	Local $pminval = DllStructGetPtr($tminval)
+
+	;Search for Match
+	Local $presult = _cvCreateMat($rh, $rw, 5)
+	_cvMatchTemplate($hMain_Pic, $hMatch_Pic, $presult, 5)
+	_cvThreshold($presult, $presult, $Threshold, 1, 0)
+	_cvMinMaxLoc($presult, $pminval, $pmaxval, $pminloc, $pmaxloc, Null)
+
+	;Set coordinates
+	Local $Coordinates[6]
+	$Coordinates[0] = DllStructGetData($tmaxloc, "x") + $Left[0] ; x
+	$Coordinates[1] = DllStructGetData($tmaxloc, "y") + $Top[1] ; y
+	$Coordinates[2] = DllStructGetData($tmaxloc, "x") + $width2 + $Left[0] ;x2
+	$Coordinates[3] = DllStructGetData($tmaxloc, "y") + $height2 + $Top[1] ;y2
+	$Coordinates[4] = ($Coordinates[0] + $Coordinates[2]) / 2 ;x click
+	$Coordinates[5] = ($Coordinates[1] + $Coordinates[3]) / 2 ;y click
+
+	;Release Resources
+	_cvReleaseMat($presult)
+	_cvReleaseImage($hMain_Pic)
+	_GDIPlus_BitmapDispose($Bitmap)
+	_WinAPI_DeleteObject($hBitmap)
+
+	;Check if found
+	If Not (DllStructGetData($tmaxloc, "x") = 0 And DllStructGetData($tmaxloc, "y") = 0 And $width2 = DllStructGetData($tmaxloc, "x") + $width2 And $height2 = DllStructGetData($tmaxloc, "y") + $height2) Then
+		_cvReleaseImage($hMatch_Pic)
+		Return $Coordinates
+	EndIf
+
+	for $i = 0 to 5
+		$Coordinates[$i] = 0
+	next	
+
+	_cvReleaseImage($hMatch_Pic)
+	Return SetError(2)
+
+EndFunc   ;==>_ImageSearch
 
 ; #FUNCTION# ====================================================================================================================
 ; Name ..........: _ImageSearch
@@ -114,7 +202,7 @@ Func _ImageSearch($hWnd, $Match_Pic, $Threshold = 0.9, $CustomCords = False, $Lo
 	_Internal_ErrorLogger("No match found. Loop counter: " & $LoopCount & ". // Total check time: " & Round(TimerDiff($Perf), 0) & " ms // Wait-Time per loop: " & $LoopWait & " ms. // Threshold: " & $Threshold & " // Match Image: " & $Match_Pic)
 	Return SetError(2)
 
-EndFunc   ;==>_MatchPicture
+EndFunc   ;==>_ImageSearch
 
 ; #FUNCTION# ====================================================================================================================
 ; Name ..........: _WinCapture
